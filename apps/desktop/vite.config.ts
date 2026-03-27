@@ -4,9 +4,21 @@ import electron from 'vite-plugin-electron';
 import electronRenderer from 'vite-plugin-electron-renderer';
 import path from 'node:path';
 
+// Remove crossorigin attribute from built HTML — breaks file:// loading
+function removeCrossorigin() {
+  return {
+    name: 'remove-crossorigin',
+    enforce: 'post' as const,
+    transformIndexHtml(html: string) {
+      return html.replace(/ crossorigin/g, '');
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    removeCrossorigin(),
     electron([
       {
         // Main process entry
@@ -63,6 +75,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src/renderer'),
     },
   },
+  base: './',
   build: {
     outDir: 'dist/renderer',
   },
