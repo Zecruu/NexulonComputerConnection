@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 4%;
+    --foreground: 220 10% 95%;
+    --card: 220 18% 8%;
+    --card-foreground: 220 10% 95%;
+    --primary: 220 80% 60%;
+    --primary-foreground: 220 10% 98%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 220 10% 85%;
+    --muted: 220 15% 12%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 160 70% 45%;
+    --accent-foreground: 160 10% 98%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 10% 98%;
+    --border: 220 15% 18%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    overflow: hidden;
+    user-select: none;
+    -webkit-app-region: drag;
+  }
+
+  button, input, a {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* Custom switch animation */
+.switch-track {
+  transition: background-color 0.3s ease;
+}
+.switch-thumb {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

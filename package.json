@@ -1,0 +1,15 @@
+{
+  "name": "nexulon-computer-connection",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/relay",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "relay:dev": "npm run dev -w apps/relay",
+    "relay:build": "npm run build -w apps/relay",
+    "desktop:dev": "npm run dev -w apps/desktop",
+    "desktop:build": "npm run build -w apps/desktop"
+  }
+}

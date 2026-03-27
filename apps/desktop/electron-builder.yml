@@ -1,0 +1,61 @@
+appId: com.nexulon.connect
+productName: Nexulon Connect
+copyright: Copyright © 2024 Nexulon
+
+directories:
+  buildResources: resources
+  output: release
+
+files:
+  - dist/**/*
+  - resources/**/*
+  - "!node_modules/@nut-tree/nut-js/prebuild/**"
+
+# Include native modules
+asar: true
+asarUnpack:
+  - "node_modules/@nut-tree/**"
+
+# Auto-update via GitHub Releases
+publish:
+  provider: github
+  owner: nexulon
+  repo: nexulon-connect
+
+# --- Windows ---
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  deleteAppDataOnUninstall: false
+
+# --- macOS ---
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: resources/icon.icns
+  category: public.app-category.utilities
+  hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  extendInfo:
+    NSScreenCaptureUsageDescription: "Nexulon Connect needs screen recording access to share your screen."
+    NSAccessibilityUsageDescription: "Nexulon Connect needs accessibility access to simulate mouse and keyboard input."
+
+# --- Linux ---
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64]
+  icon: resources/icons
+  category: Utility
+  maintainer: nexulon
