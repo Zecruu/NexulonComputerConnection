@@ -19,8 +19,8 @@ asarUnpack:
 # Auto-update via GitHub Releases
 publish:
   provider: github
-  owner: nexulon
-  repo: nexulon-connect
+  owner: Zecruu
+  repo: NexulonComputerConnection
 
 # --- Windows ---
 win:
