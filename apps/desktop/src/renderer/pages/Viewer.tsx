@@ -13,6 +13,8 @@ export function Viewer() {
   const hudTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const [connected, setConnected] = useState(false);
   const targetDeviceId = sessionStorage.getItem('nexulon-peer-id') || '';
+  const agentId = sessionStorage.getItem('nexulon-agent-id') || '';
+  const returnPath = agentId ? '/portal' : '/help';
 
   // Screen size of the remote host (for coordinate normalization)
   const screenSizeRef = useRef({ width: 1920, height: 1080 });
@@ -22,18 +24,26 @@ export function Viewer() {
     peerRef.current = null;
     signaling.disconnectSession();
     signaling.removeAllListeners();
-    navigate('/');
-  }, [navigate]);
+    navigate(returnPath);
+  }, [navigate, returnPath]);
 
   useEffect(() => {
     if (!targetDeviceId) {
-      navigate('/');
+      navigate(returnPath);
       return;
     }
 
     let destroyed = false;
 
     async function initPeer() {
+      // If agent is connecting from support portal, register with relay first
+      if (agentId) {
+        await signaling.connect({ deviceId: agentId });
+        // Wait briefly for registration
+        await new Promise((r) => setTimeout(r, 1000));
+        await signaling.connectTo({ targetDeviceId });
+      }
+
       const iceServers = await webrtc.getIceServers();
 
       // Create the WebRTC peer as initiator (viewer initiates)

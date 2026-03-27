@@ -49,7 +49,7 @@ export class SignalingClient extends EventEmitter {
     });
 
     this.socket.on('connect', () => {
-      this.socket!.emit('register', { deviceId });
+      this.socket!.emit('register', { deviceId, os: process.platform });
       this.emit('connected');
     });
 
@@ -76,6 +76,11 @@ export class SignalingClient extends EventEmitter {
     this.socket.on('disconnect', () => {
       this.emit('disconnected');
     });
+  }
+
+  setNeedHelp(deviceId: string, needsHelp: boolean): void {
+    if (!this.socket) return;
+    this.socket.emit('need-help', { deviceId, needsHelp });
   }
 
   setAvailable(available: boolean): void {

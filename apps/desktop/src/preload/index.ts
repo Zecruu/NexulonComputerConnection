@@ -14,6 +14,8 @@ const api = {
       ipcRenderer.invoke('signaling:send-signal', payload),
     disconnectSession: () =>
       ipcRenderer.invoke('signaling:disconnect-session'),
+    setNeedHelp: (payload: { deviceId: string; needsHelp: boolean }) =>
+      ipcRenderer.invoke('signaling:need-help', payload),
     destroy: () =>
       ipcRenderer.invoke('signaling:destroy'),
 

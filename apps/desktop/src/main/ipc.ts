@@ -76,6 +76,15 @@ export function registerIpcHandlers(): void {
     getSignalingClient().sendSignal(targetDeviceId, data);
   });
 
+  ipcMain.handle('signaling:need-help', async (_event, payload: unknown) => {
+    const schema = z.object({
+      deviceId: z.string().min(1).max(10),
+      needsHelp: z.boolean(),
+    });
+    const { deviceId, needsHelp } = schema.parse(payload);
+    getSignalingClient().setNeedHelp(deviceId, needsHelp);
+  });
+
   ipcMain.handle('signaling:disconnect-session', async () => {
     getSignalingClient().disconnectSession();
   });

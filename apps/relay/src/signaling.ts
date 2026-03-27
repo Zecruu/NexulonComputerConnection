@@ -10,15 +10,23 @@ import {
   getSocketId,
   isAvailable,
 } from './registry.js';
+import { Device } from './models/device.js';
 
 // --- Zod schemas for all incoming messages ---
 
 const RegisterSchema = z.object({
   deviceId: z.string().min(1).max(10),
+  name: z.string().optional(),
+  os: z.string().optional(),
 });
 
 const AvailableSchema = z.object({
   deviceId: z.string().min(1).max(10),
+});
+
+const NeedHelpSchema = z.object({
+  deviceId: z.string().min(1).max(10),
+  needsHelp: z.boolean(),
 });
 
 const ConnectToSchema = z.object({
@@ -38,16 +46,73 @@ export function setupSignaling(io: Server): void {
   io.on('connection', (socket: Socket) => {
     console.log(`[connect] ${socket.id}`);
 
-    socket.on('register', (payload: unknown) => {
+    // Support portal clients join a room to receive real-time device updates
+    socket.on('join-support', () => {
+      socket.join('support-portal');
+      console.log(`[support] ${socket.id} joined support portal`);
+    });
+
+    socket.on('register', async (payload: unknown) => {
       const parsed = RegisterSchema.safeParse(payload);
       if (!parsed.success) {
         socket.emit('error', { message: 'Invalid register payload' });
         return;
       }
-      const { deviceId } = parsed.data;
+      const { deviceId, name, os } = parsed.data;
       registerDevice(deviceId, socket.id);
+
+      // Upsert device in MongoDB
+      try {
+        await Device.findOneAndUpdate(
+          { deviceId },
+          {
+            deviceId,
+            online: true,
+            lastSeen: new Date(),
+            ...(name && { name }),
+            ...(os && { os }),
+          },
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        console.error('[db] Failed to upsert device:', err);
+      }
+
       socket.emit('registered', { deviceId });
+
+      // Notify support portal of device status change
+      const device = await Device.findOne({ deviceId }).lean();
+      if (device) {
+        io.to('support-portal').emit('device-updated', device);
+      }
+
       console.log(`[register] ${deviceId} → ${socket.id}`);
+    });
+
+    socket.on('need-help', async (payload: unknown) => {
+      const parsed = NeedHelpSchema.safeParse(payload);
+      if (!parsed.success) return;
+      const { deviceId, needsHelp } = parsed.data;
+
+      // Update in-memory registry
+      setAvailable(deviceId, needsHelp);
+
+      // Persist to MongoDB
+      try {
+        const device = await Device.findOneAndUpdate(
+          { deviceId },
+          { needsHelp, lastSeen: new Date() },
+          { new: true }
+        );
+        if (device) {
+          // Broadcast to all support portal clients
+          io.to('support-portal').emit('device-updated', device.toObject());
+        }
+      } catch (err) {
+        console.error('[db] Failed to update need-help:', err);
+      }
+
+      console.log(`[need-help] ${deviceId} → ${needsHelp}`);
     });
 
     socket.on('available', (payload: unknown) => {
@@ -134,7 +199,7 @@ export function setupSignaling(io: Server): void {
       console.log(`[disconnect-session] ${deviceId}`);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       const deviceId = findDeviceBySocketId(socket.id);
       if (deviceId) {
         const device = getDevice(deviceId);
@@ -147,6 +212,21 @@ export function setupSignaling(io: Server): void {
           setConnected(device.connectedTo, null);
         }
         unregisterDevice(deviceId);
+
+        // Mark device offline in MongoDB
+        try {
+          const updated = await Device.findOneAndUpdate(
+            { deviceId },
+            { online: false, needsHelp: false, lastSeen: new Date() },
+            { new: true }
+          );
+          if (updated) {
+            io.to('support-portal').emit('device-updated', updated.toObject());
+          }
+        } catch (err) {
+          console.error('[db] Failed to mark device offline:', err);
+        }
+
         console.log(`[disconnect] ${deviceId} (${socket.id})`);
       }
     });
