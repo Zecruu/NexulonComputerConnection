@@ -1,4 +1,4 @@
-import { mouse, keyboard, Point, Button, Key } from '@nut-tree/nut-js';
+import { mouse, keyboard, Point, Button, Key } from '@nut-tree-fork/nut-js';
 import { screen as electronScreen } from 'electron';
 import { z } from 'zod';
 

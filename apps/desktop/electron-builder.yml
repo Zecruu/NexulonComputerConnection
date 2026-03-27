@@ -9,12 +9,12 @@ directories:
 files:
   - dist/**/*
   - resources/**/*
-  - "!node_modules/@nut-tree/nut-js/prebuild/**"
+  - "!node_modules/@nut-tree-fork/nut-js/prebuild/**"
 
 # Include native modules
 asar: true
 asarUnpack:
-  - "node_modules/@nut-tree/**"
+  - "node_modules/@nut-tree-fork/**"
 
 # Auto-update via GitHub Releases
 publish:

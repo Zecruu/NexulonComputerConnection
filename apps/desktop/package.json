@@ -13,7 +13,7 @@
     "dist": "electron-builder"
   },
   "dependencies": {
-    "@nut-tree/nut-js": "^4.2.0",
+    "@nut-tree-fork/nut-js": "^4.2.6",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.2.0",
     "nanoid": "^5.0.7",
