@@ -14,12 +14,19 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist/main',
+            lib: {
+              entry: 'src/main/index.ts',
+              formats: ['cjs'],
+            },
             rollupOptions: {
+              output: {
+                entryFileNames: '[name].js',
+              },
               external: [
                 'electron',
                 'electron-store',
                 'electron-updater',
-                '@nut-tree/nut-js',
+                '@nut-tree-fork/nut-js',
                 'socket.io-client',
               ],
             },
@@ -35,7 +42,14 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist/preload',
+            lib: {
+              entry: 'src/preload/index.ts',
+              formats: ['cjs'],
+            },
             rollupOptions: {
+              output: {
+                entryFileNames: '[name].js',
+              },
               external: ['electron'],
             },
           },

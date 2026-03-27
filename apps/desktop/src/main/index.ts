@@ -1,11 +1,8 @@
 import { app, BrowserWindow, systemPreferences } from 'electron';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import Store from 'electron-store';
 import { registerIpcHandlers } from './ipc.js';
 import { destroySignalingClient } from './peer.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const store = new Store({
   defaults: {
