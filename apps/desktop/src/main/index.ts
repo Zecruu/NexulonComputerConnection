@@ -47,6 +47,9 @@ function createWindow(): void {
     mainWindow = null;
   });
 
+  // Open DevTools in packaged app to debug blank screen (remove after fixing)
+  mainWindow.webContents.openDevTools();
+
   // In dev, load from Vite dev server; in prod, load the built index.html
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

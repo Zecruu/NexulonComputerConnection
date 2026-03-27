@@ -5,11 +5,7 @@ import { CustomerHelp } from './pages/CustomerHelp';
 import { SupportPortal } from './pages/SupportPortal';
 import { Viewer } from './pages/Viewer';
 
-// Clerk publishable key — set via env var or hardcode for the app
-// IMPORTANT: Replace with your actual Clerk publishable key
-const CLERK_KEY =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
-  'pk_test_REPLACE_WITH_YOUR_CLERK_KEY';
+const CLERK_KEY = 'pk_test_ZHJpdmluZy1zd2luZS05Ni5jbGVyay5hY2NvdW50cy5kZXYk';
 
 export default function App() {
   return (
