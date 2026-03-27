@@ -30,7 +30,7 @@ function createWindow(): void {
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       webSecurity: false, // Allow Clerk to load external resources
-      nodeIntegration: false,
+      nodeIntegration: true,
       contextIsolation: true,
       sandbox: false, // Required for @nut-tree/nut-js native modules
     },
@@ -46,9 +46,6 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
-  // Open DevTools in packaged app to debug blank screen (remove after fixing)
-  mainWindow.webContents.openDevTools();
 
   // In dev, load from Vite dev server; in prod, load the built index.html
   if (process.env.VITE_DEV_SERVER_URL) {
