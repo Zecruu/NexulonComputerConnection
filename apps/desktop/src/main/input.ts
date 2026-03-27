@@ -10,11 +10,18 @@ export const MouseMoveSchema = z.object({
   y: z.number(),
 });
 
-export const MouseClickSchema = z.object({
-  type: z.literal('mousedown').or(z.literal('mouseup')),
+export const MouseDownSchema = z.object({
+  type: z.literal('mousedown'),
   x: z.number(),
   y: z.number(),
-  button: z.number(), // 0 = left, 1 = middle, 2 = right
+  button: z.number(),
+});
+
+export const MouseUpSchema = z.object({
+  type: z.literal('mouseup'),
+  x: z.number(),
+  y: z.number(),
+  button: z.number(),
 });
 
 export const MouseScrollSchema = z.object({
@@ -23,17 +30,25 @@ export const MouseScrollSchema = z.object({
   deltaY: z.number(),
 });
 
-export const KeyEventSchema = z.object({
-  type: z.literal('keydown').or(z.literal('keyup')),
+export const KeyDownSchema = z.object({
+  type: z.literal('keydown'),
+  key: z.string(),
+  code: z.string(),
+});
+
+export const KeyUpSchema = z.object({
+  type: z.literal('keyup'),
   key: z.string(),
   code: z.string(),
 });
 
 export const InputEventSchema = z.discriminatedUnion('type', [
   MouseMoveSchema,
-  MouseClickSchema,
+  MouseDownSchema,
+  MouseUpSchema,
   MouseScrollSchema,
-  KeyEventSchema,
+  KeyDownSchema,
+  KeyUpSchema,
 ]);
 
 export type InputEvent = z.infer<typeof InputEventSchema>;
