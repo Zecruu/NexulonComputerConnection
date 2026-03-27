@@ -1,11 +1,10 @@
 {
   "name": "nexulon-connect",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Cross-platform remote desktop app",
   "author": "Nexulon <support@nexulon.com>",
   "main": "dist/main/index.js",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:electron": "tsx src/main/index.ts",
