@@ -5,7 +5,8 @@ import { EventEmitter } from 'node:events';
 // are available. The main process handles socket.io signaling only and relays
 // WebRTC signals between the renderer and the relay server.
 
-const RELAY_URL = process.env.RELAY_URL || 'http://localhost:3001';
+const RELAY_URL =
+  process.env.RELAY_URL || 'https://relay-server-production-76ba.up.railway.app';
 
 const STUN_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
