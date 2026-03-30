@@ -75,6 +75,16 @@ const api = {
   webrtc: {
     getIceServers: () => ipcRenderer.invoke('webrtc:get-ice-servers'),
   },
+
+  // --- Updater ---
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: () => ipcRenderer.invoke('updater:download'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    getVersion: () => ipcRenderer.invoke('updater:get-version'),
+    onStatus: (cb: (status: string, data?: any) => void) =>
+      ipcRenderer.on('updater:status', (_e, status, data) => cb(status, data)),
+  },
 } as const;
 
 // contextIsolation is disabled, so assign directly to window

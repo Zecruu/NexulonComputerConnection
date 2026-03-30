@@ -161,8 +161,73 @@ app.on('window-all-closed', () => {
   }
 });
 
-if (app.isPackaged) {
+// --- Auto-updater with IPC ---
+import { ipcMain } from 'electron';
+
+function setupAutoUpdater() {
   import('electron-updater').then(({ autoUpdater }) => {
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    const sendToRenderer = (channel: string, ...args: unknown[]) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, ...args);
+      }
+    };
+
+    autoUpdater.on('checking-for-update', () => {
+      sendToRenderer('updater:status', 'checking');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      sendToRenderer('updater:status', 'available', info.version);
+    });
+
+    autoUpdater.on('update-not-available', () => {
+      sendToRenderer('updater:status', 'up-to-date');
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+      sendToRenderer('updater:status', 'downloading', progress.percent);
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+      sendToRenderer('updater:status', 'ready');
+    });
+
+    autoUpdater.on('error', (err) => {
+      sendToRenderer('updater:status', 'error', err?.message || 'Update failed');
+    });
+
+    ipcMain.handle('updater:check', async () => {
+      try {
+        const result = await autoUpdater.checkForUpdates();
+        return result?.updateInfo?.version || null;
+      } catch (err: any) {
+        return { error: err?.message || 'Check failed' };
+      }
+    });
+
+    ipcMain.handle('updater:download', async () => {
+      await autoUpdater.downloadUpdate();
+    });
+
+    ipcMain.handle('updater:install', () => {
+      autoUpdater.quitAndInstall(false, true);
+    });
+
+    ipcMain.handle('updater:get-version', () => {
+      return app.getVersion();
+    });
   });
+}
+
+if (app.isPackaged) {
+  setupAutoUpdater();
+} else {
+  // In dev, just expose the version
+  ipcMain.handle('updater:check', async () => null);
+  ipcMain.handle('updater:download', async () => {});
+  ipcMain.handle('updater:install', () => {});
+  ipcMain.handle('updater:get-version', () => app.getVersion());
 }
