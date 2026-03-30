@@ -64,8 +64,8 @@ function startLocalServer(rendererDir: string): Promise<number> {
       });
     });
 
-    // Fixed port so Clerk recognizes the origin consistently
-    server.listen(19876, '127.0.0.1', () => {
+    // Fixed port on localhost — Clerk dev instances auto-allow localhost origins
+    server.listen(19876, 'localhost', () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
         localServer = server;
@@ -117,7 +117,7 @@ async function createWindow(): Promise<void> {
     // Serve renderer via localhost so Clerk gets an http:// origin
     const rendererDir = path.join(__dirname, '../renderer');
     const port = await startLocalServer(rendererDir);
-    mainWindow.loadURL(`http://127.0.0.1:${port}`);
+    mainWindow.loadURL(`http://localhost:${port}`);
   }
 }
 
