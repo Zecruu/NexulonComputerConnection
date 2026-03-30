@@ -316,6 +316,8 @@ function AuthForm() {
       console.log('[auth] signIn result:', result.status);
       if (result.status === 'complete') {
         await setSignInActive({ session: result.createdSessionId });
+        window.location.reload();
+        return;
       }
     } catch (err: any) {
       console.error('[auth] signIn error:', JSON.stringify(err?.errors || err, null, 2));
@@ -380,10 +382,15 @@ function AuthForm() {
     setLoading(true);
     try {
       const result = await signUp.attemptEmailAddressVerification({ code });
+      console.log('[auth] verify result:', result.status);
       if (result.status === 'complete') {
         await setSignUpActive({ session: result.createdSessionId });
+        // Force reload so useAuth() picks up the new session
+        window.location.reload();
+        return;
       }
     } catch (err: any) {
+      console.error('[auth] verify error:', err);
       setError(err?.errors?.[0]?.longMessage || err?.message || 'Verification failed');
     } finally {
       setLoading(false);
