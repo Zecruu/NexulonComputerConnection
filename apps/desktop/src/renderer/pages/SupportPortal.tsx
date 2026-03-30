@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser, SignIn, SignInButton } from '@clerk/clerk-react';
+import { useAuth, useUser, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { io, Socket } from 'socket.io-client';
 
 const RELAY_URL = 'https://relay-server-production-76ba.up.railway.app';
@@ -293,6 +293,161 @@ function SupportDashboard() {
   );
 }
 
+function AuthForm() {
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
+  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [code, setCode] = useState('');
+
+  const handleSignIn = async () => {
+    if (!signInLoaded || !signIn) return;
+    setError('');
+    setLoading(true);
+    try {
+      const result = await signIn.create({ identifier: email, password });
+      if (result.status === 'complete') {
+        await setSignInActive({ session: result.createdSessionId });
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage || err?.message || 'Sign in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!signUpLoaded || !signUp) return;
+    setError('');
+    setLoading(true);
+    try {
+      await signUp.create({
+        emailAddress: email,
+        password,
+        firstName: firstName || undefined,
+      });
+      // Send email verification
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setVerifying(true);
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage || err?.message || 'Sign up failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!signUpLoaded || !signUp) return;
+    setError('');
+    setLoading(true);
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code });
+      if (result.status === 'complete') {
+        await setSignUpActive({ session: result.createdSessionId });
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage || err?.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (verifying) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Check your email</h1>
+        <p className="text-sm text-muted-foreground mb-6">Enter the verification code sent to {email}</p>
+        <div className="w-full max-w-xs space-y-4">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Verification code"
+            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <button
+            onClick={handleVerify}
+            disabled={loading || !code}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Verifying...' : 'Verify'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
+      <h1 className="text-2xl font-bold text-foreground mb-2">Support Portal</h1>
+      <p className="text-sm text-muted-foreground mb-8">
+        {mode === 'signin' ? 'Sign in to your account' : 'Create a new account'}
+      </p>
+
+      <div className="w-full max-w-xs space-y-4">
+        {mode === 'signup' && (
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="First name"
+            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        )}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          onKeyDown={(e) => e.key === 'Enter' && (mode === 'signin' ? handleSignIn() : handleSignUp())}
+          className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <button
+          onClick={mode === 'signin' ? handleSignIn : handleSignUp}
+          disabled={loading || !email || !password}
+          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
+        </button>
+
+        <p className="text-xs text-center text-muted-foreground">
+          {mode === 'signin' ? (
+            <>
+              No account?{' '}
+              <button onClick={() => { setMode('signup'); setError(''); }} className="text-primary hover:underline">
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button onClick={() => { setMode('signin'); setError(''); }} className="text-primary hover:underline">
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function SupportPortal() {
   const { isSignedIn, isLoaded } = useAuth();
 
@@ -305,28 +460,7 @@ export function SupportPortal() {
   }
 
   if (!isSignedIn) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-background gap-6">
-        <h1 className="text-2xl font-bold text-foreground">Support Portal</h1>
-        <p className="text-sm text-muted-foreground">Sign in to access the support dashboard</p>
-        <SignInButton mode="modal">
-          <button className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-            Sign In
-          </button>
-        </SignInButton>
-        <p className="text-xs text-muted-foreground">
-          Don't have an account?{' '}
-          <a
-            href={`https://${CLERK_DOMAIN}/sign-up`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            Sign up
-          </a>
-        </p>
-      </div>
-    );
+    return <AuthForm />;
   }
 
   return <SupportDashboard />;
