@@ -77,7 +77,9 @@ const api = {
   },
 } as const;
 
-contextBridge.exposeInMainWorld('nexulon', api);
+// contextIsolation is disabled, so assign directly to window
+// contextBridge.exposeInMainWorld only works with contextIsolation: true
+(window as any).nexulon = api;
 
 // Type declaration for renderer access
 export type NexulonAPI = typeof api;

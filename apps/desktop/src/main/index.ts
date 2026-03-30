@@ -31,8 +31,8 @@ function createWindow(): void {
       preload: path.join(__dirname, '../preload/index.js'),
       webSecurity: false, // Allow Clerk to load external resources
       nodeIntegration: true,
-      contextIsolation: true,
-      sandbox: false, // Required for @nut-tree/nut-js native modules
+      contextIsolation: false,
+      sandbox: false,
     },
   });
 
