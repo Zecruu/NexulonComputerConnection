@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser, SignIn } from '@clerk/clerk-react';
+import { useAuth, useUser, SignIn, SignInButton } from '@clerk/clerk-react';
 import { io, Socket } from 'socket.io-client';
 
 const RELAY_URL = 'https://relay-server-production-76ba.up.railway.app';
+const CLERK_DOMAIN = 'driving-swine-96.clerk.accounts.dev';
 
 interface DeviceInfo {
   deviceId: string;
@@ -305,10 +306,25 @@ export function SupportPortal() {
 
   if (!isSignedIn) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="w-full max-w-md">
-          <SignIn routing="hash" />
-        </div>
+      <div className="flex flex-col items-center justify-center h-screen bg-background gap-6">
+        <h1 className="text-2xl font-bold text-foreground">Support Portal</h1>
+        <p className="text-sm text-muted-foreground">Sign in to access the support dashboard</p>
+        <SignInButton mode="modal">
+          <button className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+            Sign In
+          </button>
+        </SignInButton>
+        <p className="text-xs text-muted-foreground">
+          Don't have an account?{' '}
+          <a
+            href={`https://${CLERK_DOMAIN}/sign-up`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Sign up
+          </a>
+        </p>
       </div>
     );
   }
