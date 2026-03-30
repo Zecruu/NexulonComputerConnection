@@ -35,11 +35,37 @@ export function useHostPeer(enabled: boolean) {
 
       const iceServers = await webrtc.getIceServers();
 
-      // Create peer as non-initiator (host receives the offer)
+      // Start screen capture BEFORE creating peer — simple-peer needs
+      // the stream at creation time for the viewer to receive it
+      let stream: MediaStream | null = null;
+      try {
+        const sources = await capture.getSources();
+        if (sources.length > 0) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: sources[0].id,
+                maxWidth: 2560,
+                maxHeight: 1440,
+                maxFrameRate: 30,
+              },
+            } as MediaTrackConstraints,
+          });
+          streamRef.current = stream;
+          console.log('[host] Screen capture started');
+        }
+      } catch (err) {
+        console.error('[host] Failed to start capture:', err);
+      }
+
+      // Create peer with the stream attached
       const peer = new SimplePeer({
         initiator: false,
         trickle: true,
         config: { iceServers },
+        stream: stream || undefined,
       });
 
       peerRef.current = peer;
@@ -60,37 +86,10 @@ export function useHostPeer(enabled: boolean) {
 
       peer.on('connect', async () => {
         if (destroyed) return;
+        console.log('[host] Peer connected, sending screen size');
 
         try {
-          // Get screen capture source
-          const sources = await capture.getSources();
-          if (sources.length === 0) return;
-
           const screenSize = await capture.getScreenSize();
-
-          // Start screen capture using getUserMedia with the source ID
-          // In Electron, desktopCapturer sources work with getUserMedia
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              mandatory: {
-                chromeMediaSource: 'desktop',
-                chromeMediaSourceId: sources[0].id,
-                maxWidth: 2560,
-                maxHeight: 1440,
-                maxFrameRate: 30,
-              },
-            } as MediaTrackConstraints,
-          });
-
-          streamRef.current = stream;
-
-          // Add the stream to the peer connection
-          stream.getTracks().forEach((track) => {
-            peer.addTrack(track, stream);
-          });
-
-          // Send screen size to viewer for coordinate mapping
           peer.send(
             JSON.stringify({
               type: 'screen-size',
@@ -99,7 +98,7 @@ export function useHostPeer(enabled: boolean) {
             })
           );
         } catch (err) {
-          console.error('[host] Failed to start capture:', err);
+          console.error('[host] Failed to send screen size:', err);
         }
       });
 
@@ -120,9 +119,12 @@ export function useHostPeer(enabled: boolean) {
             return;
           }
           // Forward input event to main process for simulation
-          input.simulate(msg);
-        } catch {
-          // Ignore parse errors
+          console.log('[host] Input event received:', msg.type);
+          input.simulate(msg).catch((err: any) => {
+            console.error('[host] Input simulate error:', err);
+          });
+        } catch (err) {
+          console.error('[host] Data parse error:', err);
         }
       });
 
