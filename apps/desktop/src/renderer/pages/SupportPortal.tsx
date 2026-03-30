@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { useAuth, useUser, useSignIn } from '@clerk/clerk-react';
 import { io, Socket } from 'socket.io-client';
 
 const RELAY_URL = 'https://relay-server-production-76ba.up.railway.app';
@@ -132,6 +132,11 @@ function SupportDashboard() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [filter, setFilter] = useState<'all' | 'help' | 'online'>('all');
 
+  const currentEmail = user?.emailAddresses?.find(
+    (e) => e.id === user.primaryEmailAddressId
+  )?.emailAddress;
+  const isAdmin = currentEmail === 'nomnk5138@gmail.com';
+
   // Fetch devices from API
   const fetchDevices = useCallback(async () => {
     try {
@@ -232,6 +237,14 @@ function SupportDashboard() {
           <span className="text-sm text-muted-foreground">
             {user?.firstName || user?.emailAddresses?.[0]?.emailAddress}
           </span>
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              Admin
+            </button>
+          )}
           <button
             onClick={() => signOut()}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -295,17 +308,10 @@ function SupportDashboard() {
 
 function AuthForm() {
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [needsUsername, setNeedsUsername] = useState(false);
-  const [code, setCode] = useState('');
 
   const handleSignIn = async () => {
     console.log('[auth] handleSignIn called, signInLoaded:', signInLoaded);
@@ -329,198 +335,12 @@ function AuthForm() {
     }
   };
 
-  const handleSignUp = async () => {
-    console.log('[auth] handleSignUp called, signUpLoaded:', signUpLoaded, 'signUp:', !!signUp);
-    if (!signUpLoaded || !signUp) {
-      setError('Clerk not loaded yet. Please wait a moment and try again.');
-      return;
-    }
-    console.log('[auth] Starting sign up with email:', email);
-    setError('');
-    setLoading(true);
-    try {
-      console.log('[auth] Calling signUp.create...');
-      const result = await signUp.create({
-        emailAddress: email,
-        password,
-        username: username || undefined,
-        firstName: firstName || undefined,
-      });
-      console.log('[auth] signUp.create result:', result.status, result);
-
-      if (result.status === 'complete') {
-        console.log('[auth] Sign up complete, setting active session');
-        await setSignUpActive({ session: result.createdSessionId });
-        return;
-      }
-
-      // Send email verification
-      console.log('[auth] Preparing email verification...');
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      console.log('[auth] Verification email sent');
-      setVerifying(true);
-    } catch (err: any) {
-      console.error('[auth] signUp error:', JSON.stringify(err?.errors || err, null, 2));
-      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign up failed';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSetUsername = async () => {
-    if (!signUpLoaded || !signUp || !username) return;
-    setError('');
-    setLoading(true);
-    try {
-      const result = await signUp.update({ username });
-      console.log('[auth] username update result:', result.status);
-      if (result.status === 'complete') {
-        await setSignUpActive({ session: result.createdSessionId });
-        window.location.reload();
-        return;
-      }
-    } catch (err: any) {
-      console.error('[auth] username error:', err);
-      setError(err?.errors?.[0]?.longMessage || err?.message || 'Failed to set username');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!signUpLoaded || !signUp) return;
-    setError('');
-    try {
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      setError('New code sent!');
-    } catch (err: any) {
-      setError(err?.errors?.[0]?.longMessage || err?.message || 'Failed to resend');
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!signUpLoaded || !signUp) return;
-    setError('');
-    setLoading(true);
-    try {
-      const result = await signUp.attemptEmailAddressVerification({ code });
-      console.log('[auth] verify result:', result.status);
-      console.log('[auth] missingFields:', result.missingFields);
-      console.log('[auth] unverifiedFields:', result.unverifiedFields);
-      console.log('[auth] full result:', JSON.stringify(result, null, 2));
-
-      if (result.status === 'complete') {
-        await setSignUpActive({ session: result.createdSessionId });
-        window.location.reload();
-        return;
-      }
-
-      if (result.status === 'missing_requirements') {
-        if (result.missingFields?.includes('username')) {
-          setNeedsUsername(true);
-          setVerifying(false);
-          setError('Please choose a username to complete sign-up');
-          return;
-        }
-        const missing = result.missingFields?.join(', ') || 'unknown';
-        setError(`Additional info needed: ${missing}`);
-        setVerifying(false);
-        return;
-      }
-    } catch (err: any) {
-      console.error('[auth] verify error:', err);
-      setError(err?.errors?.[0]?.longMessage || err?.message || 'Verification failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (needsUsername) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Choose a username</h1>
-        <p className="text-sm text-muted-foreground mb-6">Pick a username to complete your account</p>
-        <div className="w-full max-w-xs space-y-4">
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-            placeholder="username"
-            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            onKeyDown={(e) => e.key === 'Enter' && handleSetUsername()}
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <button
-            onClick={handleSetUsername}
-            disabled={loading || !username || username.length < 3}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Please wait...' : 'Complete Sign Up'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (verifying) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Check your email</h1>
-        <p className="text-sm text-muted-foreground mb-6">Enter the verification code sent to {email}</p>
-        <div className="w-full max-w-xs space-y-4">
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Verification code"
-            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <button
-            onClick={handleVerify}
-            disabled={loading || !code}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Verifying...' : 'Verify'}
-          </button>
-          <button
-            onClick={handleResendCode}
-            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Didn't get the code? Resend
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
       <h1 className="text-2xl font-bold text-foreground mb-2">Support Portal</h1>
-      <p className="text-sm text-muted-foreground mb-8">
-        {mode === 'signin' ? 'Sign in to your account' : 'Create a new account'}
-      </p>
+      <p className="text-sm text-muted-foreground mb-8">Sign in to your account</p>
 
       <div className="w-full max-w-xs space-y-4">
-        {mode === 'signup' && (
-          <>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="First name"
-              className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              placeholder="Username (required)"
-              className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </>
-        )}
         <input
           type="email"
           value={email}
@@ -533,39 +353,22 @@ function AuthForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          onKeyDown={(e) => e.key === 'Enter' && (mode === 'signin' ? handleSignIn() : handleSignUp())}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
           className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
-
-        {/* Clerk CAPTCHA widget container — required for bot protection */}
-        <div id="clerk-captcha" />
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <button
-          onClick={mode === 'signin' ? handleSignIn : handleSignUp}
+          onClick={handleSignIn}
           disabled={loading || !email || !password}
           className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
 
         <p className="text-xs text-center text-muted-foreground">
-          {mode === 'signin' ? (
-            <>
-              No account?{' '}
-              <button onClick={() => { setMode('signup'); setError(''); }} className="text-primary hover:underline">
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <button onClick={() => { setMode('signin'); setError(''); }} className="text-primary hover:underline">
-                Sign in
-              </button>
-            </>
-          )}
+          Contact your admin for account access
         </p>
       </div>
     </div>

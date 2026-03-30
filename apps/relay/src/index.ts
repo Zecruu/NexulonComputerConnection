@@ -5,6 +5,7 @@ import { clerkMiddleware } from '@clerk/express';
 import { connectDB } from './db.js';
 import { setupSignaling } from './signaling.js';
 import devicesRouter from './routes/devices.js';
+import adminRouter from './routes/admin.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -29,6 +30,9 @@ app.get('/health', (_req, res) => {
 
 // Device management API (Clerk-protected)
 app.use('/api/devices', devicesRouter);
+
+// Admin API (admin email only)
+app.use('/api/admin', adminRouter);
 
 // Signaling
 setupSignaling(io);
