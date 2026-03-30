@@ -64,7 +64,8 @@ function startLocalServer(rendererDir: string): Promise<number> {
       });
     });
 
-    server.listen(0, '127.0.0.1', () => {
+    // Fixed port so Clerk recognizes the origin consistently
+    server.listen(19876, '127.0.0.1', () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
         localServer = server;

@@ -322,22 +322,40 @@ function AuthForm() {
   };
 
   const handleSignUp = async () => {
-    if (!signUpLoaded || !signUp) return;
+    if (!signUpLoaded || !signUp) {
+      setError('Clerk not loaded yet. Please wait a moment and try again.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await signUp.create({
+      const result = await signUp.create({
         emailAddress: email,
         password,
         firstName: firstName || undefined,
       });
+      console.log('[clerk] signUp.create result:', result.status);
       // Send email verification
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      console.log('[clerk] Verification email sent');
       setVerifying(true);
     } catch (err: any) {
-      setError(err?.errors?.[0]?.longMessage || err?.message || 'Sign up failed');
+      console.error('[clerk] signUp error:', err);
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign up failed';
+      setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!signUpLoaded || !signUp) return;
+    setError('');
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setError('New code sent!');
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage || err?.message || 'Failed to resend');
     }
   };
 
@@ -377,6 +395,12 @@ function AuthForm() {
             className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Verifying...' : 'Verify'}
+          </button>
+          <button
+            onClick={handleResendCode}
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Didn't get the code? Resend
           </button>
         </div>
       </div>
