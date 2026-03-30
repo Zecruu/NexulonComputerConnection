@@ -306,15 +306,19 @@ function AuthForm() {
   const [code, setCode] = useState('');
 
   const handleSignIn = async () => {
+    console.log('[auth] handleSignIn called, signInLoaded:', signInLoaded);
     if (!signInLoaded || !signIn) return;
     setError('');
     setLoading(true);
     try {
+      console.log('[auth] Calling signIn.create...');
       const result = await signIn.create({ identifier: email, password });
+      console.log('[auth] signIn result:', result.status);
       if (result.status === 'complete') {
         await setSignInActive({ session: result.createdSessionId });
       }
     } catch (err: any) {
+      console.error('[auth] signIn error:', JSON.stringify(err?.errors || err, null, 2));
       setError(err?.errors?.[0]?.longMessage || err?.message || 'Sign in failed');
     } finally {
       setLoading(false);
@@ -322,25 +326,36 @@ function AuthForm() {
   };
 
   const handleSignUp = async () => {
+    console.log('[auth] handleSignUp called, signUpLoaded:', signUpLoaded, 'signUp:', !!signUp);
     if (!signUpLoaded || !signUp) {
       setError('Clerk not loaded yet. Please wait a moment and try again.');
       return;
     }
+    console.log('[auth] Starting sign up with email:', email);
     setError('');
     setLoading(true);
     try {
+      console.log('[auth] Calling signUp.create...');
       const result = await signUp.create({
         emailAddress: email,
         password,
         firstName: firstName || undefined,
       });
-      console.log('[clerk] signUp.create result:', result.status);
+      console.log('[auth] signUp.create result:', result.status, result);
+
+      if (result.status === 'complete') {
+        console.log('[auth] Sign up complete, setting active session');
+        await setSignUpActive({ session: result.createdSessionId });
+        return;
+      }
+
       // Send email verification
+      console.log('[auth] Preparing email verification...');
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      console.log('[clerk] Verification email sent');
+      console.log('[auth] Verification email sent');
       setVerifying(true);
     } catch (err: any) {
-      console.error('[clerk] signUp error:', err);
+      console.error('[auth] signUp error:', JSON.stringify(err?.errors || err, null, 2));
       const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign up failed';
       setError(msg);
     } finally {
