@@ -12,7 +12,7 @@ function fixHtmlForElectron() {
     transformIndexHtml(html: string) {
       return html
         .replace(/ crossorigin/g, '')
-        .replace(/ type="module"/g, '');
+        .replace(/ type="module"/g, ' defer');
     },
   };
 }
