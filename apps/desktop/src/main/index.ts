@@ -1,4 +1,4 @@
-import { app, BrowserWindow, systemPreferences } from 'electron';
+import { app, BrowserWindow, systemPreferences, session } from 'electron';
 import path from 'node:path';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -64,8 +64,8 @@ function startLocalServer(rendererDir: string): Promise<number> {
       });
     });
 
-    // Fixed port on localhost — Clerk dev instances auto-allow localhost origins
-    server.listen(19876, 'localhost', () => {
+    // Port 3000 — standard dev port that Clerk whitelists
+    server.listen(3000, 'localhost', () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
         localServer = server;
@@ -132,6 +132,16 @@ async function requestMacPermissions(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  // Fix Clerk security: ensure Origin header is sent on cross-origin requests
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://*.clerk.accounts.dev/*', 'https://*.clerk.com/*'] },
+    (details, callback) => {
+      details.requestHeaders['Origin'] = 'http://localhost:3000';
+      details.requestHeaders['Referer'] = 'http://localhost:3000/';
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+
   await requestMacPermissions();
   registerIpcHandlers();
   await createWindow();
