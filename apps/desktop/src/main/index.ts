@@ -47,6 +47,8 @@ function createWindow(): void {
     mainWindow = null;
   });
 
+  mainWindow.webContents.openDevTools();
+
   // In dev, load from Vite dev server; in prod, load the built index.html
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

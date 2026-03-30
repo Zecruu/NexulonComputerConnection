@@ -4,13 +4,15 @@ import electron from 'vite-plugin-electron';
 import electronRenderer from 'vite-plugin-electron-renderer';
 import path from 'node:path';
 
-// Remove crossorigin attribute from built HTML — breaks file:// loading
-function removeCrossorigin() {
+// Remove crossorigin and type="module" from built HTML — breaks file:// loading
+function fixHtmlForElectron() {
   return {
-    name: 'remove-crossorigin',
+    name: 'fix-html-for-electron',
     enforce: 'post' as const,
     transformIndexHtml(html: string) {
-      return html.replace(/ crossorigin/g, '');
+      return html
+        .replace(/ crossorigin/g, '')
+        .replace(/ type="module"/g, '');
     },
   };
 }
@@ -18,10 +20,9 @@ function removeCrossorigin() {
 export default defineConfig({
   plugins: [
     react(),
-    removeCrossorigin(),
+    fixHtmlForElectron(),
     electron([
       {
-        // Main process entry
         entry: 'src/main/index.ts',
         vite: {
           build: {
@@ -46,7 +47,6 @@ export default defineConfig({
         },
       },
       {
-        // Preload script
         entry: 'src/preload/index.ts',
         onstart(args) {
           args.reload();
@@ -68,7 +68,9 @@ export default defineConfig({
         },
       },
     ]),
-    electronRenderer(),
+    electronRenderer({
+      nodeIntegration: true,
+    }),
   ],
   resolve: {
     alias: {
@@ -78,5 +80,15 @@ export default defineConfig({
   base: './',
   build: {
     outDir: 'dist/renderer',
+    rollupOptions: {
+      output: {
+        // Output as IIFE, not ESM — so require() works with nodeIntegration
+        format: 'iife',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        inlineDynamicImports: true,
+      },
+    },
   },
 });
