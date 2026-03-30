@@ -5,6 +5,8 @@ export interface IDevice extends Document {
   name: string;             // Friendly name (e.g. "Front Desk PC")
   online: boolean;          // Currently connected to relay
   needsHelp: boolean;       // Customer toggled "Need Help"
+  assignedTo: string | null; // Clerk userId of the agent who claimed this device
+  assignedEmail: string | null; // Agent's email for display
   lastSeen: Date;
   os: string;               // win32 | darwin | linux
   createdAt: Date;
@@ -30,6 +32,15 @@ const DeviceSchema = new Schema<IDevice>(
     needsHelp: {
       type: Boolean,
       default: false,
+    },
+    assignedTo: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    assignedEmail: {
+      type: String,
+      default: null,
     },
     lastSeen: {
       type: Date,

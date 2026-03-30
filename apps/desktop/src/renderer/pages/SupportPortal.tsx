@@ -11,6 +11,8 @@ interface DeviceInfo {
   name: string;
   online: boolean;
   needsHelp: boolean;
+  assignedTo: string | null;
+  assignedEmail: string | null;
   lastSeen: string;
   os: string;
 }
@@ -131,6 +133,9 @@ function SupportDashboard() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [filter, setFilter] = useState<'all' | 'help' | 'online'>('all');
+  const [claimCode, setClaimCode] = useState('');
+  const [claimError, setClaimError] = useState('');
+  const [claiming, setClaiming] = useState(false);
 
   const currentEmail = user?.emailAddresses?.find(
     (e) => e.id === user.primaryEmailAddressId
@@ -184,6 +189,38 @@ function SupportDashboard() {
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
+
+  const handleClaim = useCallback(async () => {
+    const code = claimCode.replace(/[-\s]/g, '').toUpperCase();
+    if (code.length !== 6) {
+      setClaimError('Enter a 6-character device code');
+      return;
+    }
+    setClaimError('');
+    setClaiming(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${RELAY_URL}/api/devices/claim`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deviceId: code }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClaimCode('');
+        fetchDevices();
+      } else {
+        setClaimError(data.error || 'Failed to add device');
+      }
+    } catch {
+      setClaimError('Failed to connect to server');
+    } finally {
+      setClaiming(false);
+    }
+  }, [claimCode, getToken, fetchDevices]);
 
   const handleConnect = useCallback(
     (deviceId: string) => {
@@ -254,21 +291,45 @@ function SupportDashboard() {
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 px-6 pt-4">
-        {(['all', 'help', 'online'] as const).map((f) => (
+      {/* Add device + filter */}
+      <div className="px-6 pt-4 space-y-3">
+        {/* Claim device by code */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={claimCode}
+            onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+            placeholder="Enter device code (e.g. ABC-123)"
+            maxLength={7}
+            onKeyDown={(e) => e.key === 'Enter' && handleClaim()}
+            className="flex-1 rounded-md bg-secondary border border-border px-3 py-2 text-sm font-mono tracking-wider text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
-              filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-            }`}
+            onClick={handleClaim}
+            disabled={claiming || !claimCode}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
           >
-            {f === 'help' ? 'Needs Help' : f}
+            {claiming ? '...' : 'Add Device'}
           </button>
-        ))}
+        </div>
+        {claimError && <p className="text-xs text-destructive">{claimError}</p>}
+
+        {/* Filter tabs */}
+        <div className="flex gap-1">
+          {(['all', 'help', 'online'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+                filter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              {f === 'help' ? 'Needs Help' : f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Device list */}
