@@ -383,10 +383,22 @@ function AuthForm() {
     try {
       const result = await signUp.attemptEmailAddressVerification({ code });
       console.log('[auth] verify result:', result.status);
+      console.log('[auth] missingFields:', result.missingFields);
+      console.log('[auth] unverifiedFields:', result.unverifiedFields);
+      console.log('[auth] full result:', JSON.stringify(result, null, 2));
+
       if (result.status === 'complete') {
         await setSignUpActive({ session: result.createdSessionId });
-        // Force reload so useAuth() picks up the new session
         window.location.reload();
+        return;
+      }
+
+      if (result.status === 'missing_requirements') {
+        // If missing fields, show error with details
+        const missing = result.missingFields?.join(', ') || 'unknown';
+        const unverified = result.unverifiedFields?.join(', ') || '';
+        setError(`Additional info needed: ${missing}${unverified ? '. Unverified: ' + unverified : ''}`);
+        setVerifying(false); // Go back to form to collect missing fields
         return;
       }
     } catch (err: any) {
