@@ -300,9 +300,11 @@ function AuthForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [needsUsername, setNeedsUsername] = useState(false);
   const [code, setCode] = useState('');
 
   const handleSignIn = async () => {
@@ -341,6 +343,7 @@ function AuthForm() {
       const result = await signUp.create({
         emailAddress: email,
         password,
+        username: username || undefined,
         firstName: firstName || undefined,
       });
       console.log('[auth] signUp.create result:', result.status, result);
@@ -360,6 +363,26 @@ function AuthForm() {
       console.error('[auth] signUp error:', JSON.stringify(err?.errors || err, null, 2));
       const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || 'Sign up failed';
       setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetUsername = async () => {
+    if (!signUpLoaded || !signUp || !username) return;
+    setError('');
+    setLoading(true);
+    try {
+      const result = await signUp.update({ username });
+      console.log('[auth] username update result:', result.status);
+      if (result.status === 'complete') {
+        await setSignUpActive({ session: result.createdSessionId });
+        window.location.reload();
+        return;
+      }
+    } catch (err: any) {
+      console.error('[auth] username error:', err);
+      setError(err?.errors?.[0]?.longMessage || err?.message || 'Failed to set username');
     } finally {
       setLoading(false);
     }
@@ -394,11 +417,15 @@ function AuthForm() {
       }
 
       if (result.status === 'missing_requirements') {
-        // If missing fields, show error with details
+        if (result.missingFields?.includes('username')) {
+          setNeedsUsername(true);
+          setVerifying(false);
+          setError('Please choose a username to complete sign-up');
+          return;
+        }
         const missing = result.missingFields?.join(', ') || 'unknown';
-        const unverified = result.unverifiedFields?.join(', ') || '';
-        setError(`Additional info needed: ${missing}${unverified ? '. Unverified: ' + unverified : ''}`);
-        setVerifying(false); // Go back to form to collect missing fields
+        setError(`Additional info needed: ${missing}`);
+        setVerifying(false);
         return;
       }
     } catch (err: any) {
@@ -408,6 +435,33 @@ function AuthForm() {
       setLoading(false);
     }
   };
+
+  if (needsUsername) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-background px-8">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Choose a username</h1>
+        <p className="text-sm text-muted-foreground mb-6">Pick a username to complete your account</p>
+        <div className="w-full max-w-xs space-y-4">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            placeholder="username"
+            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            onKeyDown={(e) => e.key === 'Enter' && handleSetUsername()}
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <button
+            onClick={handleSetUsername}
+            disabled={loading || !username || username.length < 3}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Please wait...' : 'Complete Sign Up'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (verifying) {
     return (
@@ -450,13 +504,22 @@ function AuthForm() {
 
       <div className="w-full max-w-xs space-y-4">
         {mode === 'signup' && (
-          <input
-            type="text"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            placeholder="First name"
-            className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+          <>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              placeholder="Username (required)"
+              className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </>
         )}
         <input
           type="email"
