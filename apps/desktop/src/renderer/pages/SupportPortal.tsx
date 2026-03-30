@@ -440,6 +440,9 @@ function AuthForm() {
           className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
 
+        {/* Clerk CAPTCHA widget container — required for bot protection */}
+        <div id="clerk-captcha" />
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <button
