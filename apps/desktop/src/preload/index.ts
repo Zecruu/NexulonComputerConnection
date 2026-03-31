@@ -76,6 +76,14 @@ const api = {
     getIceServers: () => ipcRenderer.invoke('webrtc:get-ice-servers'),
   },
 
+  // --- File transfer ---
+  files: {
+    saveToDownloads: (fileName: string, data: Uint8Array) =>
+      ipcRenderer.invoke('files:save-to-downloads', fileName, data),
+    pickFile: () => ipcRenderer.invoke('files:pick-file'),
+    getDownloadsPath: () => ipcRenderer.invoke('files:get-downloads-path'),
+  },
+
   // --- Updater ---
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

@@ -1,4 +1,6 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, dialog, app, Notification } from 'electron';
+import path from 'node:path';
+import fs from 'node:fs';
 import { z } from 'zod';
 import {
   getSignalingClient,
@@ -119,5 +121,55 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('webrtc:get-ice-servers', async () => {
     return ICE_SERVERS;
+  });
+
+  // --- File transfer ---
+
+  ipcMain.handle('files:save-to-downloads', async (_event, fileName: string, data: Uint8Array) => {
+    const downloadsPath = app.getPath('downloads');
+    const filePath = path.join(downloadsPath, fileName);
+
+    // Avoid overwriting — append (1), (2), etc.
+    let finalPath = filePath;
+    let counter = 1;
+    const ext = path.extname(fileName);
+    const base = path.basename(fileName, ext);
+    while (fs.existsSync(finalPath)) {
+      finalPath = path.join(downloadsPath, `${base} (${counter})${ext}`);
+      counter++;
+    }
+
+    fs.writeFileSync(finalPath, Buffer.from(data));
+
+    // Show system notification
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'File Received',
+        body: `Saved to Downloads: ${path.basename(finalPath)}`,
+      }).show();
+    }
+
+    return finalPath;
+  });
+
+  ipcMain.handle('files:pick-file', async (_event) => {
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ['openFile'],
+      title: 'Select a file to send',
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    const filePath = result.filePaths[0];
+    const data = fs.readFileSync(filePath);
+    return {
+      name: path.basename(filePath),
+      data: new Uint8Array(data),
+      size: data.length,
+    };
+  });
+
+  ipcMain.handle('files:get-downloads-path', async () => {
+    return app.getPath('downloads');
   });
 }

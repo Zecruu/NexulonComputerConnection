@@ -103,9 +103,42 @@ export function useHostPeer(enabled: boolean) {
       });
 
       // Handle input events from the viewer
+      // File receive buffer
+      let fileBuffer: { name: string; size: number; chunks: string[] } | null = null;
+
       peer.on('data', (rawData: Uint8Array) => {
         try {
           const msg = JSON.parse(new TextDecoder().decode(rawData));
+
+          // Handle file transfers
+          if (msg.type === 'file-start') {
+            fileBuffer = { name: msg.name, size: msg.size, chunks: [] };
+            console.log('[host] Receiving file:', msg.name, msg.size, 'bytes');
+            return;
+          }
+          if (msg.type === 'file-chunk' && fileBuffer) {
+            fileBuffer.chunks.push(msg.data);
+            return;
+          }
+          if (msg.type === 'file-end' && fileBuffer) {
+            const { name, chunks } = fileBuffer;
+            const byteArrays = chunks.map((b64: string) => {
+              const binary = atob(b64);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+              return bytes;
+            });
+            const totalLength = byteArrays.reduce((sum: number, arr: Uint8Array) => sum + arr.length, 0);
+            const fullData = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const arr of byteArrays) { fullData.set(arr, offset); offset += arr.length; }
+
+            window.nexulon.files.saveToDownloads(name, fullData);
+            console.log('[host] File saved:', name);
+            fileBuffer = null;
+            return;
+          }
+
           if (msg.type === 'request-screen-size') {
             capture.getScreenSize().then((size) => {
               peer.send(
@@ -119,7 +152,6 @@ export function useHostPeer(enabled: boolean) {
             return;
           }
           // Forward input event to main process for simulation
-          console.log('[host] Input event received:', msg.type);
           input.simulate(msg).catch((err: any) => {
             console.error('[host] Input simulate error:', err);
           });

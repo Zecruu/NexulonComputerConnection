@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SimplePeer from 'simple-peer';
+import { useFileTransfer } from '../hooks/useFileTransfer';
 
-const { signaling, capture, webrtc } = window.nexulon;
+const { signaling, capture, webrtc, files } = window.nexulon;
 
 export function Viewer() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function Viewer() {
   const targetDeviceId = sessionStorage.getItem('nexulon-peer-id') || '';
   const agentId = sessionStorage.getItem('nexulon-agent-id') || '';
   const returnPath = agentId ? '/portal' : '/help';
+  const { progress: fileProgress, sendFile, handleIncomingData: handleFileData } = useFileTransfer(peerRef);
 
   // Screen size of the remote host (for coordinate normalization)
   const screenSizeRef = useRef({ width: 1920, height: 1080 });
@@ -88,6 +90,8 @@ export function Viewer() {
       peer.on('data', (rawData: Uint8Array) => {
         try {
           const msg = JSON.parse(new TextDecoder().decode(rawData));
+          // Handle file transfers first
+          if (handleFileData(msg)) return;
           if (msg.type === 'screen-size') {
             screenSizeRef.current = {
               width: msg.width,
@@ -261,13 +265,42 @@ export function Viewer() {
             {targetDeviceId.slice(0, 3)}-{targetDeviceId.slice(3)}
           </span>
         </span>
-        <button
-          onClick={disconnect}
-          className="rounded-md bg-destructive px-3 py-1 text-sm font-medium text-white hover:bg-destructive/80 transition-colors cursor-pointer"
-        >
-          Disconnect
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              const file = await files.pickFile();
+              if (file) sendFile(file);
+            }}
+            className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-white hover:bg-primary/80 transition-colors cursor-pointer"
+          >
+            Send File
+          </button>
+          <button
+            onClick={disconnect}
+            className="rounded-md bg-destructive px-3 py-1 text-sm font-medium text-white hover:bg-destructive/80 transition-colors cursor-pointer"
+          >
+            Disconnect
+          </button>
+        </div>
       </div>
+
+      {/* File transfer progress */}
+      {fileProgress && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-lg px-4 py-3 min-w-[280px]">
+          <p className="text-xs text-white/80 mb-1">
+            {fileProgress.direction === 'sending' ? 'Sending' : 'Receiving'}: {fileProgress.fileName}
+          </p>
+          <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${fileProgress.done ? 'bg-green-500' : 'bg-primary'}`}
+              style={{ width: `${fileProgress.percent}%` }}
+            />
+          </div>
+          <p className="text-xs text-white/60 mt-1">
+            {fileProgress.done ? 'Complete!' : `${fileProgress.percent}%`}
+          </p>
+        </div>
+      )}
 
       {/* Connection loading state */}
       {!connected && (
