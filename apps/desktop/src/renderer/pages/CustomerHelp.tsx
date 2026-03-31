@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { StatusBadge, type ConnectionStatus } from '../components/StatusBadge';
 import { DeviceID } from '../components/DeviceID';
 import { useHostPeer } from '../hooks/useHostPeer';
+import { useFileTransfer } from '../hooks/useFileTransfer';
 
-const { signaling } = window.nexulon;
+const { signaling, files } = window.nexulon;
 
 export function CustomerHelp() {
   const [deviceId, setDeviceId] = useState('');
@@ -12,7 +13,8 @@ export function CustomerHelp() {
   const [relayConnected, setRelayConnected] = useState(false);
 
   // Manage host-side peer connection when help is requested
-  useHostPeer(needsHelp);
+  const { peerRef } = useHostPeer(needsHelp);
+  const { progress: fileProgress, sendFile } = useFileTransfer(peerRef);
 
   // Generate or load device ID on mount
   useEffect(() => {
@@ -127,10 +129,43 @@ export function CustomerHelp() {
         </div>
       )}
 
+      {/* Send File button — visible when connected to an agent */}
+      {status === 'connected' && (
+        <button
+          onClick={async () => {
+            const file = await files.pickFile();
+            if (file) sendFile(file);
+          }}
+          className="mt-4 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Send File to Agent
+        </button>
+      )}
+
+      {/* File transfer progress */}
+      {fileProgress && (
+        <div className="mt-4 w-full max-w-xs">
+          <p className="text-xs text-muted-foreground mb-1">
+            {fileProgress.direction === 'sending' ? 'Sending' : 'Receiving'}: {fileProgress.fileName}
+          </p>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${fileProgress.done ? 'bg-green-500' : 'bg-primary'}`}
+              style={{ width: `${fileProgress.percent}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {fileProgress.done ? 'Complete!' : `${fileProgress.percent}%`}
+          </p>
+        </div>
+      )}
+
       {/* Helper text */}
       <p className="text-xs text-muted-foreground text-center max-w-xs mt-4">
         {needsHelp
-          ? 'A support agent will connect to your screen shortly. Please wait...'
+          ? status === 'connected'
+            ? 'A support agent is connected. You can send files using the button above.'
+            : 'A support agent will connect to your screen shortly. Please wait...'
           : 'Press the button above when you need assistance from our support team.'}
       </p>
     </div>

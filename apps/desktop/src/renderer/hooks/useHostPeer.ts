@@ -176,5 +176,5 @@ export function useHostPeer(enabled: boolean) {
     };
   }, [enabled, cleanup]);
 
-  return { cleanup };
+  return { cleanup, peerRef };
 }
