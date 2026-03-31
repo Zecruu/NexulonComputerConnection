@@ -33,11 +33,20 @@ function OsIcon({ os }: { os: string }) {
 function DeviceCard({
   device,
   onConnect,
+  onRename,
 }: {
   device: DeviceInfo;
   onConnect: (deviceId: string) => void;
+  onRename: (deviceId: string, name: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(device.name || '');
   const timeAgo = getTimeAgo(device.lastSeen);
+
+  const handleSave = () => {
+    onRename(device.deviceId, editName.trim());
+    setEditing(false);
+  };
 
   return (
     <div
@@ -76,10 +85,41 @@ function DeviceCard({
               {device.deviceId.slice(0, 3)}-{device.deviceId.slice(3)}
             </span>
             <OsIcon os={device.os} />
-            {device.name && (
-              <span className="text-sm text-muted-foreground">
-                ({device.name})
-              </span>
+            {editing ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') setEditing(false);
+                  }}
+                  autoFocus
+                  placeholder="Device name"
+                  className="w-32 rounded bg-secondary border border-border px-2 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={handleSave}
+                  className="text-xs text-green-400 hover:text-green-300"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setEditName(device.name || ''); setEditing(true); }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                title="Click to rename"
+              >
+                {device.name || 'Name this device'}
+              </button>
             )}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
@@ -222,6 +262,27 @@ function SupportDashboard() {
     }
   }, [claimCode, getToken, fetchDevices]);
 
+  const handleRename = useCallback(async (deviceId: string, name: string) => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${RELAY_URL}/api/devices/${deviceId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        setDevices((prev) =>
+          prev.map((d) => (d.deviceId === deviceId ? { ...d, name } : d))
+        );
+      }
+    } catch {
+      console.error('[portal] Failed to rename device');
+    }
+  }, [getToken]);
+
   const handleConnect = useCallback(
     (deviceId: string) => {
       sessionStorage.setItem('nexulon-peer-id', deviceId);
@@ -352,6 +413,7 @@ function SupportDashboard() {
               key={device.deviceId}
               device={device}
               onConnect={handleConnect}
+              onRename={handleRename}
             />
           ))
         )}
