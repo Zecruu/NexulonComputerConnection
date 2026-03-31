@@ -162,8 +162,10 @@ app.on('window-all-closed', () => {
 });
 
 // --- Auto-updater with IPC ---
+// Use require() not import() — output is CJS and dynamic import()
+// fails to resolve from asar in packaged Electron apps.
+
 let autoUpdaterInstance: any = null;
-let updaterReady: Promise<void> | null = null;
 
 const sendToRenderer = (channel: string, ...args: unknown[]) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -172,29 +174,28 @@ const sendToRenderer = (channel: string, ...args: unknown[]) => {
 };
 
 if (app.isPackaged) {
-  updaterReady = import('electron-updater')
-    .then(({ autoUpdater }) => {
-      autoUpdaterInstance = autoUpdater;
-      autoUpdater.autoDownload = false;
-      autoUpdater.autoInstallOnAppQuit = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { autoUpdater } = require('electron-updater');
+    autoUpdaterInstance = autoUpdater;
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
 
-      autoUpdater.on('checking-for-update', () => sendToRenderer('updater:status', 'checking'));
-      autoUpdater.on('update-available', (info: any) => sendToRenderer('updater:status', 'available', info.version));
-      autoUpdater.on('update-not-available', () => sendToRenderer('updater:status', 'up-to-date'));
-      autoUpdater.on('download-progress', (p: any) => sendToRenderer('updater:status', 'downloading', p.percent));
-      autoUpdater.on('update-downloaded', () => sendToRenderer('updater:status', 'ready'));
-      autoUpdater.on('error', (err: any) => sendToRenderer('updater:status', 'error', err?.message || 'Update failed'));
+    autoUpdater.on('checking-for-update', () => sendToRenderer('updater:status', 'checking'));
+    autoUpdater.on('update-available', (info: any) => sendToRenderer('updater:status', 'available', info.version));
+    autoUpdater.on('update-not-available', () => sendToRenderer('updater:status', 'up-to-date'));
+    autoUpdater.on('download-progress', (p: any) => sendToRenderer('updater:status', 'downloading', p.percent));
+    autoUpdater.on('update-downloaded', () => sendToRenderer('updater:status', 'ready'));
+    autoUpdater.on('error', (err: any) => sendToRenderer('updater:status', 'error', err?.message || 'Update failed'));
 
-      console.log('[updater] electron-updater loaded');
-    })
-    .catch((err) => {
-      console.error('[updater] Failed to load electron-updater:', err);
-    });
+    console.log('[updater] electron-updater loaded successfully');
+  } catch (err) {
+    console.error('[updater] Failed to load electron-updater:', err);
+  }
 }
 
 ipcMain.handle('updater:check', async () => {
-  if (updaterReady) await updaterReady;
-  if (!autoUpdaterInstance) return { error: 'Updater not available' };
+  if (!autoUpdaterInstance) return { error: 'Updater not available (app not packaged or module missing)' };
   try {
     const result = await autoUpdaterInstance.checkForUpdates();
     return result?.updateInfo?.version || null;
@@ -204,7 +205,6 @@ ipcMain.handle('updater:check', async () => {
 });
 
 ipcMain.handle('updater:download', async () => {
-  if (updaterReady) await updaterReady;
   if (!autoUpdaterInstance) return;
   await autoUpdaterInstance.downloadUpdate();
 });

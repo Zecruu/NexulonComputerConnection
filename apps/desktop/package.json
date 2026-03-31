@@ -1,6 +1,6 @@
 {
   "name": "nexulon-connect",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "description": "Cross-platform remote desktop app",
   "author": "Nexulon <support@nexulon.com>",
